@@ -51,26 +51,26 @@ completions, and known issues. When you FINISH, call WriteKB to record what you 
 - The repo is already authenticated — git push will work directly
 - Do NOT push to main. Always push to your feature branch.
 
-## Card: Create calculator UI with HTML and CSS
-**ID:** 9b57fb79-1058-4e29-a67e-2a997383a883
+## Card: Add keyboard input support
+**ID:** 37629996-68ba-4c6f-a35e-42ff7870a84c
 **Status:** IN_PROGRESS
 
 ### Description
-Build the visual layout of a calculator web app. Create an index.html file with a calculator display area and buttons for digits 0-9, operations (+, -, *, /), equals (=), and clear (C). Style it with embedded CSS to look clean and modern with a dark theme.
+Add keyboard event listeners so users can type numbers and operators using their keyboard. Support digits 0-9, operators +, -, *, /, Enter for equals, Escape or Delete for clear, and Backspace to delete last character.
 
 ### Acceptance Criteria
 [
   {
-    "description": "index.html file exists with valid HTML5 structure"
+    "description": "Keyboard number keys 0-9 input digits into the calculator display"
   },
   {
-    "description": "Calculator has a display/output area to show current input and results"
+    "description": "Keyboard operators +, -, *, / trigger the corresponding operations"
   },
   {
-    "description": "Buttons for digits 0-9, operations +, -, *, /, equals =, and clear C are present"
+    "description": "Enter key triggers equals/calculate and Escape or Delete clears the display"
   },
   {
-    "description": "CSS styling gives the calculator a clean dark-themed appearance with proper button layout"
+    "description": "Backspace key deletes the last entered character from the display"
   }
 ]
 
