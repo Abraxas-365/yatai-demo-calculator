@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculator</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #1a1a2e;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .calculator {
+      background-color: #16213e;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      padding: 24px;
+      width: 320px;
+    }
+
+    /* Display area */
+    .display {
+      background-color: #0f3460;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      text-align: right;
+      min-height: 90px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow: hidden;
+    }
+
+    .display .expression {
+      color: #7a8ba6;
+      font-size: 14px;
+      min-height: 20px;
+      word-break: break-all;
+      margin-bottom: 6px;
+    }
+
+    .display .current-value {
+      color: #e0e0e0;
+      font-size: 36px;
+      font-weight: 300;
+      word-break: break-all;
+      line-height: 1.1;
+    }
+
+    /* Button grid */
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    /* Base button styles */
+    .btn {
+      background-color: #1a1a2e;
+      border: none;
+      border-radius: 10px;
+      color: #e0e0e0;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 500;
+      padding: 18px 0;
+      transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      user-select: none;
+    }
+
+    .btn:hover {
+      background-color: #252547;
+      box-shadow: 0 6px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Clear button */
+    .btn-clear {
+      background-color: #e74c3c;
+      color: #ffffff;
+    }
+
+    .btn-clear:hover {
+      background-color: #c0392b;
+    }
+
+    /* Operator buttons (+, -, *, /) */
+    .btn-operator {
+      background-color: #0f3460;
+      color: #4fc3f7;
+      font-weight: 600;
+    }
+
+    .btn-operator:hover {
+      background-color: #1a5276;
+    }
+
+    /* Equals button */
+    .btn-equals {
+      background-color: #4fc3f7;
+      color: #0d1b2a;
+      font-weight: 700;
+    }
+
+    .btn-equals:hover {
+      background-color: #29b6f6;
+    }
+
+    /* Zero button spans 2 columns */
+    .btn-zero {
+      grid-column: span 2;
+      text-align: left;
+      padding-left: 28px;
+    }
+  </style>
+</head>
+<body>
+  <div class="calculator" role="application" aria-label="Calculator">
+
+    <!-- Display area -->
+    <div class="display" aria-live="polite" aria-label="Calculator display">
+      <div class="expression" id="expression" aria-label="Expression"></div>
+      <div class="current-value" id="current-value" aria-label="Current value">0</div>
+    </div>
+
+    <!-- Button grid -->
+    <div class="buttons">
+      <!-- Row 1: Clear, +/-, %, Divide -->
+      <button class="btn btn-clear" id="btn-clear" aria-label="Clear">C</button>
+      <button class="btn btn-operator" id="btn-negate" aria-label="Toggle sign">+/-</button>
+      <button class="btn btn-operator" id="btn-percent" aria-label="Percent">%</button>
+      <button class="btn btn-operator" id="btn-divide" data-op="/" aria-label="Divide">÷</button>
+
+      <!-- Row 2: 7, 8, 9, Multiply -->
+      <button class="btn btn-digit" data-digit="7" aria-label="7">7</button>
+      <button class="btn btn-digit" data-digit="8" aria-label="8">8</button>
+      <button class="btn btn-digit" data-digit="9" aria-label="9">9</button>
+      <button class="btn btn-operator" id="btn-multiply" data-op="*" aria-label="Multiply">×</button>
+
+      <!-- Row 3: 4, 5, 6, Subtract -->
+      <button class="btn btn-digit" data-digit="4" aria-label="4">4</button>
+      <button class="btn btn-digit" data-digit="5" aria-label="5">5</button>
+      <button class="btn btn-digit" data-digit="6" aria-label="6">6</button>
+      <button class="btn btn-operator" id="btn-subtract" data-op="-" aria-label="Subtract">−</button>
+
+      <!-- Row 4: 1, 2, 3, Add -->
+      <button class="btn btn-digit" data-digit="1" aria-label="1">1</button>
+      <button class="btn btn-digit" data-digit="2" aria-label="2">2</button>
+      <button class="btn btn-digit" data-digit="3" aria-label="3">3</button>
+      <button class="btn btn-operator" id="btn-add" data-op="+" aria-label="Add">+</button>
+
+      <!-- Row 5: 0 (wide), decimal, equals -->
+      <button class="btn btn-digit btn-zero" data-digit="0" aria-label="0">0</button>
+      <button class="btn btn-digit" id="btn-decimal" data-digit="." aria-label="Decimal point">.</button>
+      <button class="btn btn-equals" id="btn-equals" aria-label="Equals">=</button>
+    </div>
+  </div>
+
+  <script>
+    // Minimal JS to make the display interactive (not required by card, but improves UX)
+    const display = document.getElementById('current-value');
+    const expression = document.getElementById('expression');
+    let current = '0';
+    let prevValue = null;
+    let operator = null;
+    let waitingForOperand = false;
+
+    function updateDisplay(val) {
+      display.textContent = val;
+    }
+
+    document.querySelectorAll('.btn-digit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const digit = btn.dataset.digit;
+        if (digit === '.' && current.includes('.')) return;
+        if (waitingForOperand) {
+          current = digit === '.' ? '0.' : digit;
+          waitingForOperand = false;
+        } else {
+          current = current === '0' && digit !== '.' ? digit : current + digit;
+        }
+        updateDisplay(current);
+      });
+    });
+
+    document.querySelectorAll('.btn-operator[data-op]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const op = btn.dataset.op;
+        if (operator && !waitingForOperand) calculate();
+        prevValue = parseFloat(current);
+        operator = op;
+        waitingForOperand = true;
+        expression.textContent = current + ' ' + btn.textContent;
+      });
+    });
+
+    document.getElementById('btn-equals').addEventListener('click', () => {
+      if (operator === null || waitingForOperand) return;
+      calculate();
+      operator = null;
+      expression.textContent = '';
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      current = '0';
+      prevValue = null;
+      operator = null;
+      waitingForOperand = false;
+      expression.textContent = '';
+      updateDisplay('0');
+    });
+
+    document.getElementById('btn-negate').addEventListener('click', () => {
+      current = String(parseFloat(current) * -1);
+      updateDisplay(current);
+    });
+
+    document.getElementById('btn-percent').addEventListener('click', () => {
+      current = String(parseFloat(current) / 100);
+      updateDisplay(current);
+    });
+
+    function calculate() {
+      const next = parseFloat(current);
+      let result;
+      switch (operator) {
+        case '+': result = prevValue + next; break;
+        case '-': result = prevValue - next; break;
+        case '*': result = prevValue * next; break;
+        case '/': result = next !== 0 ? prevValue / next : 'Error'; break;
+        default: return;
+      }
+      expression.textContent = prevValue + ' ' + operator + ' ' + next + ' =';
+      current = String(result);
+      updateDisplay(current);
+      prevValue = result;
+      waitingForOperand = true;
+    }
+  </script>
+</body>
+</html>
