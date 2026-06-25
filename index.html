@@ -173,85 +173,239 @@
   </div>
 
   <script>
-    // Minimal JS to make the display interactive (not required by card, but improves UX)
-    const display = document.getElementById('current-value');
-    const expression = document.getElementById('expression');
-    let current = '0';
-    let prevValue = null;
-    let operator = null;
-    let waitingForOperand = false;
+    // ── Calculator State ────────────────────────────────────────────────────────
+    const display      = document.getElementById('current-value');
+    const expressionEl = document.getElementById('expression');
 
-    function updateDisplay(val) {
-      display.textContent = val;
+    /**
+     * currentInput  – the number string currently being built by the user
+     * storedValue   – the left-hand operand stored when an operator is pressed
+     * pendingOp     – the operator that is waiting to be applied ('+', '-', '*', '/')
+     * waitingForRHS – true when the next digit press should start a fresh right-hand side
+     * justCalculated – true immediately after '=' so a digit press starts fresh
+     */
+    let currentInput    = '0';
+    let storedValue     = null;
+    let pendingOp       = null;
+    let waitingForRHS   = false;
+    let justCalculated  = false;
+
+    // ── Display helpers ─────────────────────────────────────────────────────────
+
+    /**
+     * Format a numeric result so it fits neatly in the display.
+     * Avoids floating-point noise (e.g. 0.1 + 0.2 → 0.3, not 0.30000000000000004).
+     */
+    function formatResult(value) {
+      if (value === 'Error') return 'Error';
+      const num = parseFloat(value);
+      if (!isFinite(num)) return 'Error';
+      // Use toPrecision to strip floating-point noise, then strip trailing zeros
+      const precise = parseFloat(num.toPrecision(12));
+      return String(precise);
     }
 
-    document.querySelectorAll('.btn-digit').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const digit = btn.dataset.digit;
-        if (digit === '.' && current.includes('.')) return;
-        if (waitingForOperand) {
-          current = digit === '.' ? '0.' : digit;
-          waitingForOperand = false;
-        } else {
-          current = current === '0' && digit !== '.' ? digit : current + digit;
-        }
-        updateDisplay(current);
-      });
-    });
+    function updateDisplay(value) {
+      display.textContent = value;
+    }
 
-    document.querySelectorAll('.btn-operator[data-op]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const op = btn.dataset.op;
-        if (operator && !waitingForOperand) calculate();
-        prevValue = parseFloat(current);
-        operator = op;
-        waitingForOperand = true;
-        expression.textContent = current + ' ' + btn.textContent;
-      });
-    });
+    function setExpression(text) {
+      expressionEl.textContent = text;
+    }
 
-    document.getElementById('btn-equals').addEventListener('click', () => {
-      if (operator === null || waitingForOperand) return;
-      calculate();
-      operator = null;
-      expression.textContent = '';
-    });
+    /** Map internal operator symbol to human-readable glyph for the expression line. */
+    function opGlyph(op) {
+      return { '+': '+', '-': '−', '*': '×', '/': '÷' }[op] || op;
+    }
 
-    document.getElementById('btn-clear').addEventListener('click', () => {
-      current = '0';
-      prevValue = null;
-      operator = null;
-      waitingForOperand = false;
-      expression.textContent = '';
-      updateDisplay('0');
-    });
+    // ── Core arithmetic ─────────────────────────────────────────────────────────
 
-    document.getElementById('btn-negate').addEventListener('click', () => {
-      current = String(parseFloat(current) * -1);
-      updateDisplay(current);
-    });
-
-    document.getElementById('btn-percent').addEventListener('click', () => {
-      current = String(parseFloat(current) / 100);
-      updateDisplay(current);
-    });
-
-    function calculate() {
-      const next = parseFloat(current);
-      let result;
-      switch (operator) {
-        case '+': result = prevValue + next; break;
-        case '-': result = prevValue - next; break;
-        case '*': result = prevValue * next; break;
-        case '/': result = next !== 0 ? prevValue / next : 'Error'; break;
-        default: return;
+    /**
+     * Apply pendingOp to (storedValue, rhs) and return the result as a string.
+     * Division by zero returns the string 'Error'.
+     */
+    function applyOperation(lhs, op, rhs) {
+      switch (op) {
+        case '+': return formatResult(lhs + rhs);
+        case '-': return formatResult(lhs - rhs);
+        case '*': return formatResult(lhs * rhs);
+        case '/':
+          if (rhs === 0) return 'Error';
+          return formatResult(lhs / rhs);
+        default:
+          return formatResult(lhs);
       }
-      expression.textContent = prevValue + ' ' + operator + ' ' + next + ' =';
-      current = String(result);
-      updateDisplay(current);
-      prevValue = result;
-      waitingForOperand = true;
     }
+
+    // ── Button handlers ─────────────────────────────────────────────────────────
+
+    /** Handle a digit (0–9) or decimal-point press. */
+    function handleDigit(digit) {
+      // After pressing '=', a new digit starts a fresh calculation
+      if (justCalculated) {
+        currentInput   = digit === '.' ? '0.' : digit;
+        storedValue    = null;
+        pendingOp      = null;
+        waitingForRHS  = false;
+        justCalculated = false;
+        setExpression('');
+        updateDisplay(currentInput);
+        return;
+      }
+
+      // After pressing an operator, begin entering the right-hand side
+      if (waitingForRHS) {
+        currentInput  = digit === '.' ? '0.' : digit;
+        waitingForRHS = false;
+        updateDisplay(currentInput);
+        return;
+      }
+
+      // Prevent multiple decimal points
+      if (digit === '.' && currentInput.includes('.')) return;
+
+      // Replace leading '0' unless adding a decimal point
+      if (currentInput === '0' && digit !== '.') {
+        currentInput = digit;
+      } else {
+        currentInput += digit;
+      }
+
+      updateDisplay(currentInput);
+    }
+
+    /** Handle an arithmetic operator (+, -, *, /) press. */
+    function handleOperator(op, glyphText) {
+      // If the display is showing an error, don't allow further operations
+      if (currentInput === 'Error') return;
+
+      const currentNum = parseFloat(currentInput);
+
+      // Chain operations: if there is already a pending op and the user hasn't
+      // started entering a new number yet, just swap the operator
+      if (pendingOp !== null && waitingForRHS) {
+        pendingOp = op;
+        setExpression(formatResult(storedValue) + ' ' + glyphText);
+        return;
+      }
+
+      // If there is a pending operation, evaluate it first (left-to-right chaining)
+      if (pendingOp !== null && !waitingForRHS) {
+        const result = applyOperation(storedValue, pendingOp, currentNum);
+        currentInput = result;
+        updateDisplay(currentInput);
+        if (result === 'Error') {
+          storedValue  = null;
+          pendingOp    = null;
+          waitingForRHS = false;
+          setExpression('');
+          return;
+        }
+        storedValue = parseFloat(result);
+      } else {
+        storedValue = currentNum;
+      }
+
+      pendingOp     = op;
+      waitingForRHS = true;
+      justCalculated = false;
+      setExpression(formatResult(storedValue) + ' ' + glyphText);
+    }
+
+    /** Handle the equals (=) press. */
+    function handleEquals() {
+      // Nothing to evaluate
+      if (pendingOp === null || currentInput === 'Error') return;
+      // If the user pressed = right after an operator, treat RHS = LHS (no-op repeat)
+      if (waitingForRHS) return;
+
+      const lhs = storedValue;
+      const rhs = parseFloat(currentInput);
+      const result = applyOperation(lhs, pendingOp, rhs);
+
+      setExpression(formatResult(lhs) + ' ' + opGlyph(pendingOp) + ' ' + formatResult(rhs) + ' =');
+      currentInput   = result;
+      storedValue    = null;
+      pendingOp      = null;
+      waitingForRHS  = false;
+      justCalculated = true;
+      updateDisplay(currentInput);
+    }
+
+    /** Reset everything to initial state. */
+    function handleClear() {
+      currentInput   = '0';
+      storedValue    = null;
+      pendingOp      = null;
+      waitingForRHS  = false;
+      justCalculated = false;
+      setExpression('');
+      updateDisplay('0');
+    }
+
+    /** Toggle positive/negative sign of the current input. */
+    function handleNegate() {
+      if (currentInput === '0' || currentInput === 'Error') return;
+      if (currentInput.startsWith('-')) {
+        currentInput = currentInput.slice(1);
+      } else {
+        currentInput = '-' + currentInput;
+      }
+      updateDisplay(currentInput);
+    }
+
+    /** Convert current input to a percentage (÷ 100). */
+    function handlePercent() {
+      if (currentInput === 'Error') return;
+      const val = parseFloat(currentInput) / 100;
+      currentInput = formatResult(val);
+      updateDisplay(currentInput);
+    }
+
+    // ── Event listener wiring ───────────────────────────────────────────────────
+
+    // Digit buttons (0–9 and decimal point)
+    document.querySelectorAll('.btn-digit').forEach(btn => {
+      btn.addEventListener('click', () => handleDigit(btn.dataset.digit));
+    });
+
+    // Operator buttons (+, -, *, /)
+    document.querySelectorAll('.btn-operator[data-op]').forEach(btn => {
+      btn.addEventListener('click', () => handleOperator(btn.dataset.op, btn.textContent.trim()));
+    });
+
+    // Equals
+    document.getElementById('btn-equals').addEventListener('click', handleEquals);
+
+    // Clear
+    document.getElementById('btn-clear').addEventListener('click', handleClear);
+
+    // +/- negate
+    document.getElementById('btn-negate').addEventListener('click', handleNegate);
+
+    // Percent
+    document.getElementById('btn-percent').addEventListener('click', handlePercent);
+
+    // ── Keyboard support ────────────────────────────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if (e.key >= '0' && e.key <= '9') { handleDigit(e.key); return; }
+      if (e.key === '.') { handleDigit('.'); return; }
+      if (e.key === '+') { handleOperator('+', '+'); return; }
+      if (e.key === '-') { handleOperator('-', '−'); return; }
+      if (e.key === '*') { handleOperator('*', '×'); return; }
+      if (e.key === '/') { e.preventDefault(); handleOperator('/', '÷'); return; }
+      if (e.key === 'Enter' || e.key === '=') { handleEquals(); return; }
+      if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') { handleClear(); return; }
+      if (e.key === 'Backspace') {
+        if (currentInput.length > 1 && currentInput !== 'Error') {
+          currentInput = currentInput.slice(0, -1);
+          if (currentInput === '-') currentInput = '0';
+        } else {
+          currentInput = '0';
+        }
+        updateDisplay(currentInput);
+      }
+    });
   </script>
 </body>
 </html>

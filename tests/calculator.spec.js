@@ -8,97 +8,48 @@ test.beforeEach(async ({ page }) => {
   await page.goto(FILE_URL);
 });
 
-// ── Acceptance Criteria 1: Valid HTML5 structure ──────────────────────────────
-test('AC1: index.html has valid HTML5 doctype and structure', async ({ page }) => {
-  // Check page title
-  await expect(page).toHaveTitle('Calculator');
+// ── AC1: JavaScript code is included that handles button clicks ───────────────
 
-  // Verify DOCTYPE via doctype node (outerHTML never includes the doctype)
-  const hasDoctype = await page.evaluate(() => document.doctype !== null);
-  expect(hasDoctype).toBe(true);
-  const doctypeName = await page.evaluate(() => document.doctype?.name ?? '');
-  expect(doctypeName.toLowerCase()).toBe('html');
-  // lang attribute present
-  const lang = await page.getAttribute('html', 'lang');
-  expect(lang).toBe('en');
-  // charset meta
-  const charset = await page.$('meta[charset="UTF-8"]');
-  expect(charset).not.toBeNull();
-  // viewport meta
-  const viewport = await page.$('meta[name="viewport"]');
-  expect(viewport).not.toBeNull();
+test('AC1: JavaScript is present and handles digit button clicks', async ({ page }) => {
+  // Clicking digit 7 should update the display
+  await page.click('[data-digit="7"]');
+  await expect(page.locator('#current-value')).toHaveText('7');
 });
 
-// ── Acceptance Criteria 2: Display/output area ────────────────────────────────
-test('AC2: calculator has a display area showing current input and results', async ({ page }) => {
-  const display = page.locator('#current-value');
-  await expect(display).toBeVisible();
-  await expect(display).toHaveText('0');
-
-  // Display updates when a digit is clicked
+test('AC1: JavaScript handles operator button clicks', async ({ page }) => {
+  // Clicking an operator after a digit should update the expression area
   await page.click('[data-digit="5"]');
-  await expect(display).toHaveText('5');
+  await page.click('[data-op="+"]');
+  const expression = page.locator('#expression');
+  await expect(expression).not.toBeEmpty();
+});
 
-  // Display shows result after calculation
+test('AC1: JavaScript handles clear button click', async ({ page }) => {
+  await page.click('[data-digit="9"]');
+  await page.click('#btn-clear');
+  await expect(page.locator('#current-value')).toHaveText('0');
+  await expect(page.locator('#expression')).toBeEmpty();
+});
+
+test('AC1: JavaScript handles equals button click', async ({ page }) => {
+  await page.click('[data-digit="3"]');
+  await page.click('[data-op="+"]');
+  await page.click('[data-digit="4"]');
+  await page.click('#btn-equals');
+  await expect(page.locator('#current-value')).toHaveText('7');
+});
+
+// ── AC2: All arithmetic operations work correctly ─────────────────────────────
+
+test('AC2: addition works correctly (5 + 3 = 8)', async ({ page }) => {
+  await page.click('[data-digit="5"]');
   await page.click('[data-op="+"]');
   await page.click('[data-digit="3"]');
   await page.click('#btn-equals');
-  await expect(display).toHaveText('8');
+  await expect(page.locator('#current-value')).toHaveText('8');
 });
 
-// ── Acceptance Criteria 3: All required buttons present ───────────────────────
-test('AC3: digits 0-9 are all present', async ({ page }) => {
-  for (let d = 0; d <= 9; d++) {
-    const btn = page.locator(`[data-digit="${d}"]`);
-    await expect(btn).toBeVisible();
-  }
-});
-
-test('AC3: operation buttons +, -, *, / are present', async ({ page }) => {
-  await expect(page.locator('[data-op="+"]')).toBeVisible();
-  await expect(page.locator('[data-op="-"]')).toBeVisible();
-  await expect(page.locator('[data-op="*"]')).toBeVisible();
-  await expect(page.locator('[data-op="/"]')).toBeVisible();
-});
-
-test('AC3: equals (=) and clear (C) buttons are present', async ({ page }) => {
-  await expect(page.locator('#btn-equals')).toBeVisible();
-  await expect(page.locator('#btn-clear')).toBeVisible();
-});
-
-// ── Acceptance Criteria 4: Dark theme CSS ─────────────────────────────────────
-test('AC4: calculator has dark-themed appearance', async ({ page }) => {
-  // Body background should be dark
-  const bodyBg = await page.evaluate(() =>
-    window.getComputedStyle(document.body).backgroundColor
-  );
-  // rgb(26, 26, 46) = #1a1a2e
-  expect(bodyBg).toBe('rgb(26, 26, 46)');
-
-  // Calculator widget background should be dark
-  const calcBg = await page.evaluate(() =>
-    window.getComputedStyle(document.querySelector('.calculator')).backgroundColor
-  );
-  // rgb(22, 33, 62) = #16213e
-  expect(calcBg).toBe('rgb(22, 33, 62)');
-
-  // Display text color should be light
-  const displayColor = await page.evaluate(() =>
-    window.getComputedStyle(document.getElementById('current-value')).color
-  );
-  // rgb(224, 224, 224) = #e0e0e0
-  expect(displayColor).toBe('rgb(224, 224, 224)');
-});
-
-test('AC4: buttons are laid out in a grid', async ({ page }) => {
-  const gridDisplay = await page.evaluate(() =>
-    window.getComputedStyle(document.querySelector('.buttons')).display
-  );
-  expect(gridDisplay).toBe('grid');
-});
-
-// ── Functional smoke tests ─────────────────────────────────────────────────────
-test('FUNC: subtraction works', async ({ page }) => {
+test('AC2: subtraction works correctly (9 - 4 = 5)', async ({ page }) => {
   await page.click('[data-digit="9"]');
   await page.click('[data-op="-"]');
   await page.click('[data-digit="4"]');
@@ -106,7 +57,7 @@ test('FUNC: subtraction works', async ({ page }) => {
   await expect(page.locator('#current-value')).toHaveText('5');
 });
 
-test('FUNC: multiplication works', async ({ page }) => {
+test('AC2: multiplication works correctly (6 × 7 = 42)', async ({ page }) => {
   await page.click('[data-digit="6"]');
   await page.click('[data-op="*"]');
   await page.click('[data-digit="7"]');
@@ -114,7 +65,7 @@ test('FUNC: multiplication works', async ({ page }) => {
   await expect(page.locator('#current-value')).toHaveText('42');
 });
 
-test('FUNC: division works', async ({ page }) => {
+test('AC2: division works correctly (81 ÷ 9 = 9)', async ({ page }) => {
   await page.click('[data-digit="8"]');
   await page.click('[data-digit="1"]');
   await page.click('[data-op="/"]');
@@ -123,14 +74,124 @@ test('FUNC: division works', async ({ page }) => {
   await expect(page.locator('#current-value')).toHaveText('9');
 });
 
-test('FUNC: clear button resets display to 0', async ({ page }) => {
+test('AC2: multi-digit numbers work correctly (12 + 34 = 46)', async ({ page }) => {
+  await page.click('[data-digit="1"]');
+  await page.click('[data-digit="2"]');
+  await page.click('[data-op="+"]');
+  await page.click('[data-digit="3"]');
+  await page.click('[data-digit="4"]');
+  await page.click('#btn-equals');
+  await expect(page.locator('#current-value')).toHaveText('46');
+});
+
+test('AC2: chained operations evaluate left-to-right (3 + 4 - 2 = 5)', async ({ page }) => {
+  await page.click('[data-digit="3"]');
+  await page.click('[data-op="+"]');
+  await page.click('[data-digit="4"]');
+  await page.click('[data-op="-"]');   // should compute 3+4=7 first
+  await page.click('[data-digit="2"]');
+  await page.click('#btn-equals');
+  await expect(page.locator('#current-value')).toHaveText('5');
+});
+
+test('AC2: decimal arithmetic works (1.5 + 2.5 = 4)', async ({ page }) => {
+  await page.click('[data-digit="1"]');
+  await page.click('[data-digit="."]');
+  await page.click('[data-digit="5"]');
+  await page.click('[data-op="+"]');
+  await page.click('[data-digit="2"]');
+  await page.click('[data-digit="."]');
+  await page.click('[data-digit="5"]');
+  await page.click('#btn-equals');
+  await expect(page.locator('#current-value')).toHaveText('4');
+});
+
+// ── AC3: Display updates correctly ───────────────────────────────────────────
+
+test('AC3: display shows 0 on initial load', async ({ page }) => {
+  await expect(page.locator('#current-value')).toHaveText('0');
+});
+
+test('AC3: display updates as digits are pressed', async ({ page }) => {
+  await page.click('[data-digit="4"]');
+  await expect(page.locator('#current-value')).toHaveText('4');
+  await page.click('[data-digit="2"]');
+  await expect(page.locator('#current-value')).toHaveText('42');
+});
+
+test('AC3: expression area updates when operator is pressed', async ({ page }) => {
+  await page.click('[data-digit="8"]');
+  await page.click('[data-op="+"]');
+  const expr = await page.locator('#expression').textContent();
+  expect(expr).toContain('8');
+});
+
+test('AC3: display shows result after equals', async ({ page }) => {
   await page.click('[data-digit="7"]');
-  await page.click('[data-digit="7"]');
+  await page.click('[data-op="*"]');
+  await page.click('[data-digit="6"]');
+  await page.click('#btn-equals');
+  await expect(page.locator('#current-value')).toHaveText('42');
+});
+
+test('AC3: expression shows full equation after equals', async ({ page }) => {
+  await page.click('[data-digit="2"]');
+  await page.click('[data-op="+"]');
+  await page.click('[data-digit="3"]');
+  await page.click('#btn-equals');
+  const expr = await page.locator('#expression').textContent();
+  expect(expr).toContain('=');
+});
+
+test('AC3: display resets to 0 after clear', async ({ page }) => {
+  await page.click('[data-digit="5"]');
+  await page.click('[data-digit="5"]');
+  await page.click('[data-digit="5"]');
+  await page.click('#btn-clear');
+  await expect(page.locator('#current-value')).toHaveText('0');
+});
+
+test('AC3: new digit after result starts fresh entry', async ({ page }) => {
+  await page.click('[data-digit="3"]');
+  await page.click('[data-op="+"]');
+  await page.click('[data-digit="2"]');
+  await page.click('#btn-equals');      // result: 5
+  await page.click('[data-digit="9"]'); // should start fresh, not append to 5
+  await expect(page.locator('#current-value')).toHaveText('9');
+});
+
+// ── AC4: Division by zero shows error message ────────────────────────────────
+
+test('AC4: dividing by zero shows Error', async ({ page }) => {
+  await page.click('[data-digit="5"]');
+  await page.click('[data-op="/"]');
+  await page.click('[data-digit="0"]');
+  await page.click('#btn-equals');
+  await expect(page.locator('#current-value')).toHaveText('Error');
+});
+
+test('AC4: dividing any number by zero shows Error', async ({ page }) => {
+  await page.click('[data-digit="1"]');
+  await page.click('[data-digit="0"]');
+  await page.click('[data-digit="0"]');
+  await page.click('[data-op="/"]');
+  await page.click('[data-digit="0"]');
+  await page.click('#btn-equals');
+  await expect(page.locator('#current-value')).toHaveText('Error');
+});
+
+test('AC4: clear after divide-by-zero error resets calculator', async ({ page }) => {
+  await page.click('[data-digit="1"]');
+  await page.click('[data-op="/"]');
+  await page.click('[data-digit="0"]');
+  await page.click('#btn-equals');
+  await expect(page.locator('#current-value')).toHaveText('Error');
   await page.click('#btn-clear');
   await expect(page.locator('#current-value')).toHaveText('0');
 });
 
 // ── Screenshot proof ──────────────────────────────────────────────────────────
+
 test('SCREENSHOT: calculator initial state', async ({ page }) => {
   await page.screenshot({
     path: '/workspace/proof/calculator-initial.png',
@@ -138,8 +199,7 @@ test('SCREENSHOT: calculator initial state', async ({ page }) => {
   });
 });
 
-test('SCREENSHOT: calculator after arithmetic', async ({ page }) => {
-  // Type 12 + 34 =
+test('SCREENSHOT: calculator showing addition result', async ({ page }) => {
   await page.click('[data-digit="1"]');
   await page.click('[data-digit="2"]');
   await page.click('[data-op="+"]');
@@ -147,8 +207,20 @@ test('SCREENSHOT: calculator after arithmetic', async ({ page }) => {
   await page.click('[data-digit="4"]');
   await page.click('#btn-equals');
   await page.screenshot({
-    path: '/workspace/proof/calculator-result.png',
+    path: '/workspace/proof/calculator-addition.png',
     fullPage: false,
   });
   await expect(page.locator('#current-value')).toHaveText('46');
+});
+
+test('SCREENSHOT: calculator showing divide-by-zero error', async ({ page }) => {
+  await page.click('[data-digit="9"]');
+  await page.click('[data-op="/"]');
+  await page.click('[data-digit="0"]');
+  await page.click('#btn-equals');
+  await page.screenshot({
+    path: '/workspace/proof/calculator-divide-by-zero.png',
+    fullPage: false,
+  });
+  await expect(page.locator('#current-value')).toHaveText('Error');
 });
